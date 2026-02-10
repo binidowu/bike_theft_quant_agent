@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bicycle Theft Risk Predictor</title>
 
-  <link rel="stylesheet" href="styles.css?v=20260210-2" />
-  <script src="script.js?v=20260210-2"></script>
+  <link rel="stylesheet" href="styles.css?v=20260210-4" />
+  <script src="script.js?v=20260210-4"></script>
 </head>
 
 <body>
@@ -119,6 +119,47 @@
         </div>
       </section>
     </main>
+
+    <section class="card agent-card">
+      <h2 class="card-title">Quantitative Agent</h2>
+      <p class="card-subtitle">
+        Ask dataset questions and let the agent run quantitative tools (stats, grouped averages, and plots).
+      </p>
+
+      <div id="agentErrorBox" class="alert alert-error hidden"></div>
+
+      <div class="form">
+        <div class="field">
+          <label for="agentQuestion">Question</label>
+          <textarea id="agentQuestion" rows="3"
+            placeholder="e.g. What is the average BIKE_COST by NEIGHBOURHOOD_158?"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="agentDatasetPath">Dataset path (optional)</label>
+          <input id="agentDatasetPath" type="text" placeholder="data/bicycle_thefts_open_data.csv" />
+          <small class="field-hint">Leave blank to use backend default dataset.</small>
+        </div>
+
+        <div class="actions">
+          <button id="agentQueryBtn" type="button" onclick="sendAgentQuery()">Ask Quant Agent</button>
+          <button id="agentSampleBtn" type="button" class="btn-secondary"
+            onclick="fillAgentSampleQuestion()">Use Sample Question</button>
+        </div>
+      </div>
+
+      <div id="agentLoadingBox" class="loading hidden">
+        <div class="spinner"></div>
+        <span>Running quantitative tools...</span>
+      </div>
+
+      <div id="agentResult" class="result-panel empty">
+        <div class="result-placeholder">
+          <p>No agent query yet.</p>
+          <p class="muted">Ask a question above to see answer, tool traces, and result tables.</p>
+        </div>
+      </div>
+    </section>
 
     <footer class="app-footer">
       <span>Bicycle Theft Prediction Quant Agent</span>

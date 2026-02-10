@@ -16,7 +16,7 @@ train:
 	$(ACTIVATE) && MPLBACKEND=Agg $(PYTHON) scripts/bike_theft_training_pipeline.py
 
 run-api:
-	$(ACTIVATE) && $(PYTHON) backend/quant_agent_api.py
+	$(ACTIVATE) && $(PYTHON) -m backend.quant_agent_api
 
 run-ui:
 	$(ACTIVATE) && $(PYTHON) -m http.server 5500 --directory frontend

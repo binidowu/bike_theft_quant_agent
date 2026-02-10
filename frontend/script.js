@@ -135,6 +135,20 @@ function setLoading(isLoading) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatInlineMarkdown(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
 function parseCoordinate(value) {
   if (value === null || value === undefined) return null;
   const trimmed = String(value).trim();
@@ -374,6 +388,320 @@ function fillSampleData() {
 
   if (manualLatInput) manualLatInput.value = 43.6532;
   if (manualLonInput) manualLonInput.value = -79.3832;
+}
+
+// ==================== QUANT AGENT ====================
+
+function showAgentError(message) {
+  const errorBox = document.getElementById("agentErrorBox");
+  if (!errorBox) return;
+  errorBox.textContent = message;
+  errorBox.classList.remove("hidden");
+}
+
+function clearAgentError() {
+  const errorBox = document.getElementById("agentErrorBox");
+  if (!errorBox) return;
+  errorBox.textContent = "";
+  errorBox.classList.add("hidden");
+}
+
+function setAgentLoading(isLoading) {
+  const loadingBox = document.getElementById("agentLoadingBox");
+  const queryBtn = document.getElementById("agentQueryBtn");
+
+  if (loadingBox) {
+    loadingBox.classList.toggle("hidden", !isLoading);
+  }
+  if (queryBtn) {
+    queryBtn.disabled = isLoading;
+    queryBtn.textContent = isLoading ? "Running..." : "Ask Quant Agent";
+  }
+}
+
+function buildAgentPayload() {
+  clearAgentError();
+  const questionValue = document.getElementById("agentQuestion")?.value ?? "";
+  const datasetPathValue = document.getElementById("agentDatasetPath")?.value ?? "";
+
+  const question = questionValue.trim();
+  if (!question) {
+    throw new Error("Please enter a question for the quantitative agent.");
+  }
+
+  const payload = { question };
+  const datasetPath = datasetPathValue.trim();
+  if (datasetPath) {
+    payload.dataset_path = datasetPath;
+  }
+
+  return payload;
+}
+
+function renderToolCalls(toolCalls) {
+  if (!toolCalls.length) {
+    return `<p class="muted">No tool calls were returned.</p>`;
+  }
+
+  return `
+    <ul class="agent-list">
+      ${toolCalls
+        .map((entry) => {
+          const args = escapeHtml(JSON.stringify(entry.arguments || {}, null, 2));
+          return `
+            <li class="agent-list-item">
+              <div class="agent-line">
+                <strong>${escapeHtml(entry.tool || "unknown_tool")}</strong>
+                <span class="chip ${entry.ok ? "agent-chip-ok" : "agent-chip-err"}">
+                  ${entry.ok ? "OK" : "FAILED"}
+                </span>
+              </div>
+              <p class="muted">${escapeHtml(entry.summary || "")}</p>
+              <details class="agent-details">
+                <summary>Arguments</summary>
+                <pre class="agent-code">${args}</pre>
+              </details>
+            </li>
+          `;
+        })
+        .join("")}
+    </ul>
+  `;
+}
+
+function renderTables(tables) {
+  if (!tables.length) {
+    return `<p class="muted">No tables returned.</p>`;
+  }
+
+  return tables
+    .map((table, index) => {
+      const rows = Array.isArray(table.rows) ? table.rows : [];
+      if (!rows.length) {
+        return `
+          <div class="agent-table-block">
+            <h4>${escapeHtml(table.name || `table_${index + 1}`)}</h4>
+            <p class="muted">No rows in this table.</p>
+          </div>
+        `;
+      }
+
+      const columns = Object.keys(rows[0]);
+      const headerHtml = columns.map((col) => `<th>${escapeHtml(col)}</th>`).join("");
+      const bodyHtml = rows
+        .map((row) => {
+          const cells = columns
+            .map((col) => `<td>${escapeHtml(row[col] === undefined ? "" : row[col])}</td>`)
+            .join("");
+          return `<tr>${cells}</tr>`;
+        })
+        .join("");
+
+      return `
+        <div class="agent-table-block">
+          <h4>${escapeHtml(table.name || `table_${index + 1}`)}</h4>
+          <div class="agent-table-wrap">
+            <table class="agent-table">
+              <thead><tr>${headerHtml}</tr></thead>
+              <tbody>${bodyHtml}</tbody>
+            </table>
+          </div>
+          ${table.truncated ? `<p class="muted">Showing first ${rows.length} rows only.</p>` : ""}
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderPlotFiles(plotFiles) {
+  if (!plotFiles.length) {
+    return `<p class="muted">No plot files generated.</p>`;
+  }
+
+  return `
+    <ul class="agent-list compact">
+      ${plotFiles
+        .map(
+          (path) => `
+            <li class="agent-list-item">
+              <code>${escapeHtml(path)}</code>
+            </li>
+          `
+        )
+        .join("")}
+    </ul>
+  `;
+}
+
+function formatAgentAnswer(answer) {
+  const raw = String(answer ?? "").replace(/\s+/g, " ").trim();
+  if (!raw) {
+    return `<p class="agent-answer-paragraph">No answer returned.</p>`;
+  }
+
+  const firstRankMatch = raw.match(/\b1\.\s+/);
+  if (!firstRankMatch || firstRankMatch.index === undefined) {
+    return `<p class="agent-answer-paragraph">${formatInlineMarkdown(raw)}</p>`;
+  }
+
+  const splitIndex = firstRankMatch.index;
+  const intro = raw.slice(0, splitIndex).trim();
+  const rankedBlock = raw.slice(splitIndex).trim();
+
+  const segments = rankedBlock
+    .split(/(?=\d+\.\s+)/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const rankedItems = [];
+  const trailingNotes = [];
+
+  for (const segment of segments) {
+    const body = segment.replace(/^\d+\.\s+/, "").trim();
+    if (!body) continue;
+    if (/^(this data|overall|in summary|summary:)/i.test(body)) {
+      trailingNotes.push(body);
+    } else {
+      rankedItems.push(body);
+    }
+  }
+
+  const introHtml = intro
+    ? `<p class="agent-answer-paragraph">${formatInlineMarkdown(intro)}</p>`
+    : "";
+
+  const listHtml = rankedItems.length
+    ? `
+      <ol class="agent-answer-list">
+        ${rankedItems
+          .map((item) => `<li class="agent-answer-item">${formatInlineMarkdown(item)}</li>`)
+          .join("")}
+      </ol>
+    `
+    : "";
+
+  const noteHtml = trailingNotes.length
+    ? `<p class="agent-answer-note">${formatInlineMarkdown(trailingNotes.join(" "))}</p>`
+    : "";
+
+  return `${introHtml}${listHtml}${noteHtml}`;
+}
+
+function renderAgentResult(data) {
+  const panel = document.getElementById("agentResult");
+  if (!panel) return;
+
+  const toolCalls = Array.isArray(data.tool_calls) ? data.tool_calls : [];
+  const tables = Array.isArray(data.tables) ? data.tables : [];
+  const plotFiles = Array.isArray(data.plot_files) ? data.plot_files : [];
+  const metadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+
+  if (!data.ok) {
+    panel.className = "result-panel error-state";
+    panel.innerHTML = `
+      <div class="result-content">
+        <h2>Agent Error</h2>
+        <p>${escapeHtml(data.error || "The query failed.")}</p>
+        ${
+          data.code
+            ? `<div class="chips-row"><span class="chip chip-danger">Error code: <strong>${escapeHtml(
+                data.code
+              )}</strong></span></div>`
+            : ""
+        }
+      </div>
+      <hr class="divider" />
+      <div class="info-panel">
+        <h3>Tool Trace</h3>
+        ${renderToolCalls(toolCalls)}
+      </div>
+    `;
+    return;
+  }
+
+  const datasetPath = metadata.dataset_path ? escapeHtml(metadata.dataset_path) : "default dataset";
+  const toolCallsUsed = Number.isFinite(metadata.tool_calls_used)
+    ? escapeHtml(String(metadata.tool_calls_used))
+    : "0";
+
+  panel.className = "result-panel agent-success";
+  panel.innerHTML = `
+    <div class="result-content">
+      <h2>Quantitative Answer</h2>
+      <div class="agent-answer">
+        ${formatAgentAnswer(data.answer)}
+      </div>
+      <div class="chips-row">
+        <span class="chip">Dataset: <strong>${datasetPath}</strong></span>
+        <span class="chip">Tool calls used: <strong>${toolCallsUsed}</strong></span>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="info-panel">
+      <h3>Tool Trace</h3>
+      ${renderToolCalls(toolCalls)}
+
+      <h3>Tables</h3>
+      ${renderTables(tables)}
+
+      <h3>Plot Files</h3>
+      ${renderPlotFiles(plotFiles)}
+    </div>
+  `;
+}
+
+async function sendAgentQuery() {
+  try {
+    clearAgentError();
+    setAgentLoading(true);
+
+    const payload = buildAgentPayload();
+
+    const res = await fetch(`${API_BASE_URL}/agent/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (_err) {
+      data = {};
+    }
+
+    if (!res.ok || !data.ok) {
+      const fallbackMessage = `Agent request failed (${res.status}).`;
+      const errorPayload = {
+        ok: false,
+        error: data.error || fallbackMessage,
+        code: data.code || "",
+        tool_calls: data.tool_calls || [],
+        tables: data.tables || [],
+        plot_files: data.plot_files || [],
+        metadata: data.metadata || {},
+      };
+      showAgentError(errorPayload.error);
+      renderAgentResult(errorPayload);
+      return;
+    }
+
+    renderAgentResult(data);
+  } catch (err) {
+    const message = err.message || "Unexpected error while querying the agent.";
+    showAgentError(message);
+    renderAgentResult({ ok: false, error: message, code: "INTERNAL_ERROR", tool_calls: [] });
+  } finally {
+    setAgentLoading(false);
+  }
+}
+
+function fillAgentSampleQuestion() {
+  const questionInput = document.getElementById("agentQuestion");
+  if (!questionInput) return;
+  questionInput.value = "What is the average BIKE_COST by NEIGHBOURHOOD_158?";
 }
 
 async function initApp() {
