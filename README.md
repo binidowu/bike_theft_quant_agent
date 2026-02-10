@@ -7,6 +7,8 @@ Current target semantics: risk score for `STOLEN (not recovered)` vs `RECOVERED`
 ## Current Structure
 
 - `backend/quant_agent_api.py` -> Flask API for inference (`GET /`, `GET /config`, `POST /predict`)
+- `backend/quant_tools.py` -> quantitative data tools (pandas/numpy/matplotlib)
+- `backend/agent_runtime.py` -> tool-calling orchestration runtime
 - `scripts/bike_theft_training_pipeline.py` -> EDA, preprocessing, training, evaluation, serialization
 - `data/bicycle_thefts_open_data.csv` -> dataset
 - `artifacts/` -> serialized model/scaler/selected features
@@ -20,6 +22,7 @@ Current target semantics: risk score for `STOLEN (not recovered)` vs `RECOVERED`
 3. Serves predictions through Flask API.
 4. Provides a frontend form that collects inputs and calls `/predict`.
 5. Provides public runtime config (`/config`) used by frontend to optionally load Google Places.
+6. Exposes a quantitative agent endpoint (`POST /agent/query`) for tool-based data analysis.
 
 ## How It Works
 
@@ -45,6 +48,19 @@ Current target semantics: risk score for `STOLEN (not recovered)` vs `RECOVERED`
   - `probability_stolen`
   - `baseline_positive_rate`
   - `target_definition`
+
+### Quantitative Agent API
+`backend/quant_agent_api.py` + `backend/agent_runtime.py` + `backend/quant_tools.py`:
+- Accepts a natural-language question at `POST /agent/query`
+- Uses LLM function/tool calling to choose quantitative tools
+- Executes analysis in Python tools (`pandas` / `numpy` / `matplotlib`)
+- Returns:
+  - `answer`
+  - `tool_calls` trace
+  - `tables`
+  - `plot_files`
+  - `metadata`
+- Applies response row truncation to protect payload size
 
 ### Frontend
 `frontend/script.js`:
@@ -110,6 +126,32 @@ curl -X POST "http://127.0.0.1:5005/predict" \
     "LAT_WGS84": 43.65
   }'
 ```
+
+### Quant Agent Quick Test
+
+```bash
+curl -X POST "http://127.0.0.1:5005/agent/query" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is the average BIKE_COST by NEIGHBOURHOOD_158?"
+  }'
+```
+
+## Error Schema
+
+Error responses follow:
+
+```json
+{
+  "ok": false,
+  "error": "Human-readable message",
+  "code": "ERROR_CODE"
+}
+```
+
+HTTP mapping:
+- `400`: `BAD_REQUEST`, `INVALID_COLUMN`, `UNSAFE_PATH`
+- `500`: `TOOL_TIMEOUT`, `INTERNAL_ERROR`
 
 ## Known Issues
 

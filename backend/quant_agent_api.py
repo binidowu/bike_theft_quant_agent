@@ -21,6 +21,15 @@ import numpy as np
 import pandas as pd
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from backend.agent_runtime import run_agent_query
+from backend.quant_tools import (
+    QuantAgentError, 
+    ERR_BAD_REQUEST, 
+    ERR_UNSAFE_PATH, 
+    ERR_INVALID_COLUMN, 
+    ERR_INTERNAL_ERROR,
+    ERR_TOOL_TIMEOUT
+)
 
 # ------------------------ LOAD SERIALIZED OBJECTS ------------------------
 
@@ -126,6 +135,69 @@ def predict():
 
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/agent/query', methods=['POST'])
+def agent_query():
+    """
+    Endpoint for quantitative agent queries.
+    Expects JSON: { "question": "...", "dataset_path": "..." (opt) }
+    """
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            raise QuantAgentError(ERR_BAD_REQUEST, "Invalid JSON body")
+        
+        question = data.get("question")
+        if not question or not isinstance(question, str) or not question.strip():
+            raise QuantAgentError(ERR_BAD_REQUEST, "Field 'question' is required and must be a non-empty string.")
+            
+        dataset_path = data.get("dataset_path")
+        
+        # Run agent
+        result = run_agent_query(question, dataset_path=dataset_path)
+        
+        # Truncate tables for response payload safety
+        if "tables" in result:
+            for table in result["tables"]:
+                rows = table.get("rows", [])
+                if isinstance(rows, list) and len(rows) > 20:
+                    table["rows"] = rows[:20]
+                    table["truncated"] = True
+                    table["total_rows"] = len(rows)
+
+        # If runtime returns a non-success result, normalize to error schema.
+        if not result.get("ok", False):
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "error": result.get("answer", "Agent failed to complete query."),
+                        "code": ERR_INTERNAL_ERROR,
+                        "tool_calls": result.get("tool_calls", []),
+                        "tables": result.get("tables", []),
+                        "plot_files": result.get("plot_files", []),
+                        "metadata": result.get("metadata", {}),
+                    }
+                ),
+                500,
+            )
+
+        return jsonify(result), 200
+
+    except QuantAgentError as e:
+        # Client-side validation/domain errors.
+        if e.code in (ERR_UNSAFE_PATH, ERR_INVALID_COLUMN, ERR_BAD_REQUEST):
+            return jsonify({"ok": False, "error": e.message, "code": e.code}), 400
+        # Runtime/system errors.
+        if e.code in (ERR_TOOL_TIMEOUT, ERR_INTERNAL_ERROR):
+            return jsonify({"ok": False, "error": e.message, "code": e.code}), 500
+        # Unknown QuantAgentError code defaults to internal error contract.
+        return jsonify({"ok": False, "error": e.message, "code": e.code}), 500
+        
+    except Exception as e:
+        # Catch-all for unexpected runtime errors
+        return jsonify({"ok": False, "error": f"Unexpected error: {str(e)}", "code": ERR_INTERNAL_ERROR}), 500
 
 
 if __name__ == "__main__":
