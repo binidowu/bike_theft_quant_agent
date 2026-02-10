@@ -356,6 +356,11 @@ button {
   color: #7f1d1d;
 }
 
+.chip-success {
+  background-color: rgba(22, 163, 74, 0.14);
+  color: #14532d;
+}
+
 /* Placeholder text in result */
 .result-placeholder {
   text-align: left;
@@ -449,8 +454,9 @@ button {
 
 .agent-answer-paragraph {
   margin: 0 0 10px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: #1e293b;
+  max-width: 100ch;
 }
 
 .agent-answer-list {
@@ -474,6 +480,57 @@ button {
   background-color: #eff6ff;
   color: #1e3a8a;
   line-height: 1.45;
+}
+
+.agent-section {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.agent-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.agent-section-body {
+  margin-top: 8px;
+}
+
+.agent-trace summary {
+  cursor: pointer;
+}
+
+.agent-metric-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.agent-metric-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.agent-metric-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.agent-metric-value {
+  color: #1e293b;
+  text-align: right;
+  word-break: break-word;
 }
 
 .agent-chip-ok {
@@ -508,8 +565,16 @@ button {
   margin-bottom: 10px;
 }
 
+.agent-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .agent-table-block h4 {
-  margin: 6px 0;
+  margin: 0;
   font-size: 0.86rem;
   color: #0f172a;
 }
@@ -532,7 +597,8 @@ button {
   border: 1px solid #e5e7eb;
   padding: 6px 8px;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
+  vertical-align: top;
 }
 
 .agent-table th {

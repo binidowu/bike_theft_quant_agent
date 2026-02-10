@@ -74,6 +74,29 @@ Expected result:
 - Table/stat payload may appear
 - No plot unless the model decides to call a plotting tool
 
+More answer-only prompts you can use:
+
+- `List the columns in this dataset and separate numeric vs categorical columns.`
+  Expected result: answer with column overview, usually no plots.
+
+- `Give me a high-level summary of the dataset (rows, columns, missing values).`
+  Expected result: dataset summary answer; may include a structured summary table.
+
+- `What is the average BIKE_SPEED by NEIGHBOURHOOD_158?`
+  Expected result: grouped average answer + table, no plot.
+
+- `Show descriptive statistics for BIKE_SPEED.`
+  Expected result: stats answer for BIKE_SPEED, no plot.
+
+- `What are the top 10 NEIGHBOURHOOD_158 values by average BIKE_COST?`
+  Expected result: ranked grouped averages + table, no plot.
+
+- `What are the bottom 10 NEIGHBOURHOOD_158 values by average BIKE_COST?`
+  Expected result: lower-ranked grouped averages + table, no plot.
+
+- `Compare OCC_HOUR and REPORT_HOUR with descriptive stats.`
+  Expected result: answer-only stats comparison (if both columns are available).
+
 ### 2) Answer with plot/graph expected
 
 Question:
@@ -91,6 +114,37 @@ Question:
 Expected result:
 - Text summary + grouped result
 - Plot file path appears (for example: `outputs/plots/plot_avg_BIKE_COST_NEIGHBOURHOOD_158_YYYYMMDD_HHMMSS.png`)
+
+More plot-generating prompts you can use:
+
+- `Plot the distribution of BIKE_SPEED and summarize key observations.`
+  Expected result: summary + histogram plot path.
+
+- `Create a histogram for OCC_HOUR and explain the pattern.`
+  Expected result: summary + distribution plot path (if OCC_HOUR exists).
+
+- `Create a bar chart of average BIKE_SPEED by NEIGHBOURHOOD_158 for top 20 categories.`
+  Expected result: summary + grouped bar chart path.
+
+- `Plot average BIKE_COST by NEIGHBOURHOOD_158 for top 10 and explain the top/bottom values.`
+  Expected result: summary + bar chart path + likely grouped table.
+
+- `Generate a plot for the distribution of LAT_WGS84.`
+  Expected result: summary + distribution plot path (if LAT_WGS84 exists).
+
+- `Generate a plot for the distribution of LONG_WGS84.`
+  Expected result: summary + distribution plot path (if LONG_WGS84 exists).
+
+## 2.5) “Safe starter” prompt sequence (high success rate)
+
+Use this sequence when testing from scratch:
+
+1. `List all columns and identify numeric columns.`
+2. Pick one numeric column returned by step 1.
+3. Ask: `Show descriptive stats for <NUMERIC_COLUMN>.`
+4. Ask: `Plot the distribution of <NUMERIC_COLUMN> and summarize it.`
+
+This reduces invalid-column errors and gives you reliable successful responses.
 
 ## 3) Error examples (expected failure)
 
