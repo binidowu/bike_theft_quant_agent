@@ -372,16 +372,14 @@ def run_agent_query(question: str, dataset_path: Optional[str] = None) -> Dict[s
                 func = TOOL_REGISTRY[func_name]
                 try:
                     result = _execute_tool_with_timeout(func, args, func_name)
+                except QuantAgentError:
+                    # Locked contract: propagate coded tool/runtime errors to API boundary.
+                    raise
                 except Exception as e:
-                    # Capture error for the model
-                    error_msg = str(e)
-                    result = {"ok": False, "error": error_msg}
-                    # If it's a critical runtime error like timeout, we might want to kill the agent
-                    # For now, we pass it back to the model to see if it can recover?
-                    # Spec says "Tool execution loop with safety limits... raises QuantAgentError"
-                    # If it's a timeout, we should probably stop.
-                    if isinstance(e, QuantAgentError) and e.code == ERR_TOOL_TIMEOUT:
-                         raise e
+                    raise QuantAgentError(
+                        ERR_INTERNAL_ERROR,
+                        f"Tool {func_name} failed: {str(e)}",
+                    ) from e
 
             # Update ID for OpenAI
             tool_msg = {
