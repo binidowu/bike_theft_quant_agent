@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bicycle Theft Risk Predictor</title>
+
+  <link rel="stylesheet" href="styles.css?v=20260210-2" />
+  <script src="script.js?v=20260210-2"></script>
+</head>
+
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <h1>Bicycle Theft Risk Predictor</h1>
+        <p>Enter bike details and location to estimate the risk that a stolen bike will be recovered or not.</p>
+      </div>
+      <div class="tag-pill">Backend: Flask + ML Model</div>
+    </header>
+
+    <main class="card-grid">
+      <section class="card">
+        <h2 class="card-title">Prediction Input</h2>
+        <p class="card-subtitle">Required fields are based on the 12 stable features used in our ML model.</p>
+
+        <div id="errorBox" class="alert alert-error hidden"></div>
+
+        <div class="form">
+          <div class="field">
+            <label for="locationInput">Location (Google Autocomplete - Optional)</label>
+            <input id="locationInput" type="text" placeholder="Type and select a location..." autocomplete="off" />
+            <small id="locationModeHint" class="field-hint">
+              Google autocomplete is optional. You can enter coordinates manually below.
+            </small>
+          </div>
+
+          <div class="field-inline">
+            <div class="field flex-1">
+              <label for="manualLat">Latitude (manual fallback)</label>
+              <input id="manualLat" type="number" step="0.000001" min="-90" max="90" placeholder="e.g. 43.6532" />
+            </div>
+
+            <div class="field flex-1">
+              <label for="manualLon">Longitude (manual fallback)</label>
+              <input id="manualLon" type="number" step="0.000001" min="-180" max="180" placeholder="e.g. -79.3832" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="occDateTime">Occurrence Date &amp; Time</label>
+            <input id="occDateTime" type="datetime-local" />
+          </div>
+
+          <div class="field">
+            <label for="reportDateTime">Report Date &amp; Time</label>
+            <input id="reportDateTime" type="datetime-local" />
+            <small class="field-hint"> Ideally this should be on or after the occurrence time. </small>
+          </div>
+
+          <div class="field-inline">
+            <div class="field flex-1">
+              <label for="bikeCost">Bike Cost ($)</label>
+              <input id="bikeCost" type="number" min="0" step="10" placeholder="e.g. 800" />
+            </div>
+
+            <div class="field flex-1">
+              <label for="bikeSpeed">Bike Speed (gears)</label>
+              <input id="bikeSpeed" type="number" min="0" step="1" placeholder="e.g. 18" />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="predictBtn" type="button" onclick="sendPrediction()">🔍 Predict Theft Risk</button>
+            <button id="sampleBtn" type="button" class="btn-secondary" onclick="fillSampleData()">Use Sample
+              Values</button>
+          </div>
+
+          <p class="disclaimer">This is a course project model and should not be used as an official policing or
+            insurance tool.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Prediction Result</h2>
+        <p class="card-subtitle">You'll see a risk score for non-recovery after submitting the form.</p>
+
+        <div id="loadingBox" class="loading hidden">
+          <div class="spinner"></div>
+          <span>Running model prediction...</span>
+        </div>
+
+        <div id="result" class="result-panel empty">
+          <div class="result-placeholder">
+            <p>No prediction yet.</p>
+            <p class="muted">Fill in the form on the left and click <strong>Predict Theft Risk</strong>.</p>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="info-panel">
+          <h3>How we predict</h3>
+          <ul>
+            <li>We use a <strong>Random Forest / Logistic Regression</strong> model.</li>
+            <li>Inputs like occurrence time, report time, bike cost, and location coordinates are transformed into
+              numeric features.</li>
+            <li>The model outputs a predicted class and a risk score for <strong>STOLEN (not recovered)</strong> vs
+              <strong>RECOVERED</strong>.</li>
+          </ul>
+
+          <h3>Interpreting the result</h3>
+          <ul>
+            <li>Compare the score to the dataset baseline shown in the result card.</li>
+            <li>A lower score still does not mean "no risk"; it means lower relative non-recovery risk in this dataset.
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span>Bicycle Theft Prediction Quant Agent</span>
+    </footer>
+  </div>
+</body>
+
+</html>
