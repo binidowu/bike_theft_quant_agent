@@ -30,6 +30,7 @@ htmlcov/
 # Environment/config secrets
 .env
 .env.*
+!.env.example
 
 # Generated outputs
 outputs/
